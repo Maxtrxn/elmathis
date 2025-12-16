@@ -1,0 +1,112 @@
+:root {
+  --bg-dark: #131316;       /* Fond très sombre */
+  --bg-card: #1c1c21;       /* Fond des éléments */
+  --primary: #8b5cf6;       /* Violet vibrant */
+  --primary-hover: #7c3aed; /* Violet un peu plus foncé */
+  --text-main: #f3f4f6;     /* Blanc cassé */
+  --text-muted: #9ca3af;    /* Gris clair */
+  --border: #2d2d35;        /* Bordures subtiles */
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  margin: 0;
+  line-height: 1.6;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+a:hover {
+  color: #a78bfa;
+}
+
+/* --- Styles de la Navbar --- */
+nav {
+  background-color: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+nav a {
+  font-weight: bold;
+  margin-right: 1rem;
+}
+
+/* --- Styles des Inputs & Boutons --- */
+input {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  outline: none;
+  transition: border-color 0.25s;
+}
+
+input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+button {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.6em 1.2em;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.25s;
+}
+
+button:hover {
+  background-color: var(--primary-hover);
+}
+
+/* --- Styles des Cartes (Liste Étudiants) --- */
+.student-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  border-radius: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.student-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.1);
+  border-color: var(--primary);
+}
+
+/* --- Tableaux (Détail étudiant) --- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--bg-card);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th, td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  background-color: #272730;
+  color: var(--primary);
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
