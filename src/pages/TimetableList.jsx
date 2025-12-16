@@ -26,7 +26,7 @@ export default function TimetableList() {
             {/* Liste */}
             <div style={{ display: "grid", gap: "10px" }}>
                 {filteredStudents.map(student => (
-                    <div key={student.id} style={{ border: "1px solid #ddd", padding: "10px", borderRadius: "5px" }}>
+                    <div key={student.id} style={{ border: "1px solid #ddd", padding: "10px", borderRadius: "5px" }} className="student-card">
                         <strong>{student.name}</strong>
                         <span style={{ margin: "0 10px", color: "gray" }}>|</span> 
                         <small>Dernière MAJ: {student.lastUpdate}</small>
