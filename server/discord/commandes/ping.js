@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, REST, Routes } from 'discord.js';
+/*import { Client, GatewayIntentBits, REST, Routes } from 'discord.js';
 import 'dotenv/config'
 
 const { TOKEN_DISCORD, ID_BOT_DICORD } = process.env;
@@ -40,4 +40,18 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login(TOKEN_DISCORD);
+client.login(TOKEN_DISCORD);*/
+
+import { SlashCommandBuilder } from 'discord.js';
+
+export default {
+    // La définition (data)
+    data: new SlashCommandBuilder()
+        .setName('ping')
+        .setDescription('Répond avec Pong!'),
+
+    // L'action (execute)
+    async execute(interaction) {
+        await interaction.reply(`Pong ! 🏓 a toi ${interaction.user} `);
+    },
+};
