@@ -194,3 +194,58 @@ tr:last-child td {
   transform: scale(1.02);
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
+
+/* --- MODAL D'ÉDITION --- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Fond sombre */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #1e1e24;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  border: 1px solid var(--border);
+}
+
+.modal-title {
+  margin-top: 0;
+  color: var(--primary);
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-dark);
+  color: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  gap: 10px;
+}
+
+.btn-save { background-color: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; flex: 1;}
+.btn-cancel { background-color: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+.btn-delete { background-color: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }

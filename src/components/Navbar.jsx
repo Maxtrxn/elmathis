@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCalendarDays, faHouse, faKey } from '@fortawesome/free-solid-svg-icons';
 
 export default function Navbar({ user, onLogout }) {
     // Fonction pour construire l'URL de l'avatar Discord
@@ -9,8 +11,8 @@ export default function Navbar({ user, onLogout }) {
 
     return (
         <nav style={{ padding: "1rem", background: "#eee", display: "flex", gap: "20px", alignItems: "center" }}>
-            <Link to="/">🏠 Accueil</Link>
-            <Link to="/timetables">📅 Les Emplois du temps</Link>
+            <Link to="/"><FontAwesomeIcon icon={faHouse} style={{marginRight:'5px'}}/> Accueil</Link>
+            <Link to="/timetables"><FontAwesomeIcon icon={faCalendarDays} style={{marginRight:'5px'}}/> Les Emplois du temps</Link>
 
             <div style={{ marginLeft: "auto" }}>
                 {user ? (
@@ -30,7 +32,7 @@ export default function Navbar({ user, onLogout }) {
                 ) : (
                     // Ce lien pointe vers notre backend Express
                     <a href="http://localhost:3001/auth/login" style={{ color: "blue", textDecoration: "none" }}>
-                        🔑 Connexion (Discord)
+                        <FontAwesomeIcon icon={faKey} style={{marginRight:'5px', color:"yellow"}}/> Connexion (Discord)
                     </a>
                 )}
             </div>
