@@ -203,3 +203,48 @@ app.listen(PORT, () => {
     console.log(`Testez ce lien : http://localhost:${PORT}/api/students`);
     console.log(`=========================================`);
 });
+
+app.post('/api/schedule/:id', async (req, res) => {
+    const { id } = req.params;
+    const { day, hour, course } = req.body; // ex: { day: "Mardi", hour: 10, course: "React" }
+    
+    console.log(`-> Modification demandée : ${day} ${hour}h = ${course}`);
+
+    try {
+        const doc = await getDoc();
+        const sheet = doc.sheetsByIndex.find(s => s.title.includes(id));
+
+        if (!sheet) return res.status(404).json({ error: "Feuille introuvable" });
+
+        // On charge les cellules (Plage A1:F15 pour être large)
+        await sheet.loadCells('A1:F15');
+
+        // 1. Trouver la colonne du jour (Lundi=1, Mardi=2...)
+        const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+        const colIndex = days.indexOf(day) + 1; // +1 car col A est l'heure
+
+        // 2. Trouver la ligne de l'heure
+        const rowIndex = (parseInt(hour) - 8) + 1;
+
+        if (colIndex < 1 || rowIndex < 0) {
+            return res.status(400).json({ error: "Jour ou heure invalide" });
+        }
+
+        // 3. Modifier la cellule du cours
+        const cell = sheet.getCell(rowIndex, colIndex);
+        cell.value = course; // Si vide, ça efface le cours
+
+        // 4. Mettre à jour la date de modif (Case B14 -> index 13, 1)
+        const dateCell = sheet.getCell(13, 1);
+        dateCell.value = new Date().toLocaleDateString('fr-FR');
+
+        // 5. Sauvegarder sur Google
+        await sheet.saveUpdatedCells();
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error("!!! ERREUR MODIF :", error);
+        res.status(500).json({ error: error.message });
+    }
+});
