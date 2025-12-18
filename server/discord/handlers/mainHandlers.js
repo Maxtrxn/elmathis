@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,7 +13,7 @@ export async function loadHandlers(client) {
     for (const file of commandFiles) {
         const filePath = path.join(commandsPath, file);
         // Import dynamique du fichier
-        const command = await import(filePath);
+        const command = await import(pathToFileURL(filePath).href);
 
         // On stocke la commande dans la collection du client
         if ('data' in command.default && 'execute' in command.default) {
@@ -29,7 +29,7 @@ export async function loadHandlers(client) {
 
     for (const file of eventFiles) {
         const filePath = path.join(eventsPath, file);
-        const event = await import(filePath);
+        const event = await import(pathToFileURL(filePath).href);
 
         if (event.default.once) {
             client.once(event.default.name, (...args) => event.default.execute(...args, client));
