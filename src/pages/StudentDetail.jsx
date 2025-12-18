@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faLock, faTrash, faFloppyDisk, faXmark, faCalendarDays } from '@fortawesome/free-solid-svg-icons';
 
-export default function StudentDetail() {
+export default function StudentDetail({currentUser}) {
     const { id } = useParams();
     const [student, setStudent] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -26,10 +26,7 @@ export default function StudentDetail() {
     useEffect(() => { loadData(); }, [id]);
 
     // --- LOGIQUE DE SAUVEGARDE INTELLIGENTE ---
-    const handleSaveBatch = async (original, newData, isDelete = false) => {
-        // original : { day, startHour, duration, name } (l'ancien bloc)
-        // newData : { name, startHour, endHour } (ce que l'utilisateur a choisi)
-        
+    const handleSaveBatch = async (original, newData, isDelete = false) => {        
         const updates = [];
         const day = original.dayName;
 
@@ -48,10 +45,7 @@ export default function StudentDetail() {
             const newStart = parseInt(newData.startHour);
             const newEnd = parseInt(newData.endHour); // inclus
 
-            // A. On nettoie tout l'ancien range d'abord (pour être sûr)
-            // C'est une stratégie simple : on vide l'ancien, on remplit le nouveau.
-            // Le backend gérera l'ordre, ou on optimise la liste.
-            
+            // A. On nettoie tout l'ancien range d'abord (pour être sûr)            
             // Pour faire propre : on parcourt l'union des deux plages (ancienne et nouvelle)
             const minH = Math.min(oldStart, newStart);
             const maxH = Math.max(oldEnd, newEnd);
@@ -127,6 +121,8 @@ export default function StudentDetail() {
         return consolidatedEvents;
     }, [student]);
 
+    const canEdit = currentUser && (String(currentUser.id) === String(id));
+
     // --- RENDU ---
     if (loading) return <div style={{padding:"2rem"}}>Chargement...</div>;
     if (!student) return <div style={{padding:"2rem"}}>Étudiant introuvable</div>;
@@ -137,23 +133,26 @@ export default function StudentDetail() {
              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
                 <Link to="/timetables" style={{color: 'var(--text-muted)'}}>← Retour</Link>
                 <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
-                    <button 
-                        onClick={() => setIsEditing(!isEditing)}
-                        style={{
-                            backgroundColor: isEditing ? '#ef4444' : 'var(--primary)',
-                            border: isEditing ? '2px solid white' : 'none',
-                            color: 'white', 
-                            padding: '8px 16px', 
-                            borderRadius: '4px', 
-                            cursor: 'pointer',
-                            display: 'flex', // Pour aligner l'icone et le texte
-                            alignItems: 'center',
-                            gap: '8px'
-                        }}
-                    >
-                        <FontAwesomeIcon icon={isEditing ? faLock : faPen} />
-                        {isEditing ? "Terminer" : "Modifier"}
-                    </button>
+                    {canEdit ? (
+                        <button 
+                            onClick={() => setIsEditing(!isEditing)}
+                            style={{
+                                /* Ton style existant... */
+                                backgroundColor: isEditing ? '#ef4444' : 'var(--primary)',
+                                border: isEditing ? '2px solid white' : 'none',
+                                color: 'white', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '8px'
+                            }}
+                        >
+                            <FontAwesomeIcon icon={isEditing ? faLock : faPen} />
+                            {isEditing ? "Terminer" : "Modifier"}
+                        </button>
+                    ) : (
+                        // Petit message discret pour les visiteurs
+                        <span style={{color:'gray', fontSize:'0.8rem', fontStyle:'italic'}}>
+                            Mode lecture seule
+                        </span>
+                    )}
                     <div style={{textAlign: 'right'}}>
                         <h1 style={{margin:0}}>{student.name}</h1>
                         <small style={{color: 'var(--text-muted)'}}>MAJ: {student.lastUpdate}</small>
@@ -183,7 +182,7 @@ export default function StudentDetail() {
                                     backgroundColor: isEditing ? 'rgba(255,255,255,0.02)' : 'transparent'
                                 }}
                                 onClick={() => {
-                                    if(isEditing) {
+                                    if(isEditing && canEdit) {
                                         // Clic sur vide : on crée un nouveau bloc de 1h
                                         setSelectedEvent({
                                             dayName: day,
@@ -214,7 +213,7 @@ export default function StudentDetail() {
                             }}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if(isEditing) {
+                                if(isEditing && canEdit) {
                                     setSelectedEvent({ ...event, isNew: false });
                                 }
                             }}

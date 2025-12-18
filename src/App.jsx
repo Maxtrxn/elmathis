@@ -1,56 +1,55 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, useSearchParams, useNavigate } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import Home from "./pages/Home";
-import TimetableList from "./pages/TimetableList";
-import StudentDetail from "./pages/StudentDetail";
+import { useEffect, useState } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Home from './pages/Home';
+import TimetableList from './pages/TimetableList';
+import StudentDetail from './pages/StudentDetail';
 
 function App() {
-    const [user, setUser] = useState(null);
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        // Vérifier si l'URL contient des infos utilisateur (retour de Discord)
-        const username = searchParams.get("username");
-        const id = searchParams.get("id");
-        const avatar = searchParams.get("avatar");
+  useEffect(() => {
+    // 1. Vérifie l'URL au retour de Discord
+    const params = new URLSearchParams(window.location.search);
+    const discordId = params.get('id');
+    const username = params.get('username');
+    const avatar = params.get('avatar');
 
-        if (username && id) {
-            // On crée l'objet utilisateur
-            const newUser = { username, id, avatar };
-            setUser(newUser);
+    if (discordId && username) {
+      // Nouvelle connexion détectée
+      const userData = { id: discordId, username, avatar };
+      localStorage.setItem('user', JSON.stringify(userData)); // Sauvegarde
+      setUser(userData);
+      navigate('/'); // Nettoie l'URL
+    } else {
+      // 2. Vérifie le stockage local (si on rafraîchit la page)
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      }
+    }
+  }, [navigate]);
 
-            // Optionnel : Sauvegarder dans localStorage pour rester connecté après F5
-            localStorage.setItem("user", JSON.stringify(newUser));
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+    navigate('/');
+  };
 
-            // Nettoyer l'URL (enlever les paramètres moches)
-            navigate("/");
-        } else {
-            // Vérifier si on a déjà un utilisateur en mémoire
-            const storedUser = localStorage.getItem("user");
-            if (storedUser) {
-                setUser(JSON.parse(storedUser));
-            }
-        }
-    }, [searchParams, navigate]);
-
-    const handleLogout = () => {
-        setUser(null);
-        localStorage.removeItem("user");
-    };
-
-    return (
-        <div>
-            {/* On passe l'utilisateur et la fonction de déconnexion à la Navbar */}
-            <Navbar user={user} onLogout={handleLogout} />
+  return (
+    <>
+      <Navbar user={user} onLogout={handleLogout} />
       
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/timetables" element={<TimetableList />} />
-        <Route path="/student/:id" element={<StudentDetail />} />
+        
+        {/* On donne l'utilisateur connecté à la page de détail */}
+        <Route path="/student/:id" element={<StudentDetail currentUser={user} />} />
+        
       </Routes>
-    </div>
+    </>
   );
 }
 

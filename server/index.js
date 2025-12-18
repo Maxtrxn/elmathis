@@ -8,7 +8,7 @@ import fs from 'fs';
 // --- CHARGEMENT DU FICHIER JSON ---
 const creds = JSON.parse(fs.readFileSync('./service-account.json', 'utf-8'));
 
-// NOUVEAU : Imports pour Discord
+// Imports pour Discord
 import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config({ path: './.env' });
