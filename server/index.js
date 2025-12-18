@@ -1,8 +1,13 @@
-const express = require('express');
-const cors = require('cors');
-const { GoogleSpreadsheet } = require('google-spreadsheet');
-const { JWT } = require('google-auth-library');
-const creds = require('./service-account.json'); // Assure-toi que ce fichier est bien là !
+import dns from 'node:dns';
+dns.setDefaultResultOrder('ipv4first');
+import express from 'express';
+import cors from 'cors';
+import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { JWT } from 'google-auth-library';
+import fs from 'fs';
+
+// --- CHARGEMENT DU FICHIER JSON ---
+const creds = JSON.parse(fs.readFileSync('./service-account.json', 'utf-8'));
 
 const app = express();
 const PORT = 3001;

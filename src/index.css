@@ -110,3 +110,87 @@ th {
 tr:last-child td {
   border-bottom: none;
 }
+
+/* --- CALENDRIER STYLE GOOGLE (V2) --- */
+
+.calendar-container {
+  display: grid;
+  /* 1 col heure + 5 cols jours */
+  grid-template-columns: 60px repeat(5, 1fr);
+  /* 1 ligne entête + 10 lignes (8h-18h) de 60px de haut */
+  grid-template-rows: 40px repeat(10, 60px); 
+  
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px; /* Arrondi global du calendrier */
+  overflow: hidden;
+  margin-top: 2rem;
+  position: relative;
+}
+
+/* Les traits de la grille (Background) */
+.grid-cell-bg {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  /* Pour que les traits soient derrière les events */
+  z-index: 1; 
+}
+
+/* En-têtes (Jours) */
+.calendar-header {
+  background-color: #272730;
+  color: var(--text-main);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+  z-index: 2;
+}
+
+/* Colonne des heures */
+.time-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: center;
+  padding-top: 5px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+/* --- LE COURS FUSIONNÉ --- */
+.event-card {
+  background-color: rgba(139, 92, 246, 0.25);
+  border-left: 4px solid var(--primary);
+  color: var(--text-main);
+  padding: 8px;
+  font-size: 0.85rem;
+  
+  /* Arrondi sur l'event lui-même */
+  border-radius: 8px; 
+  
+  /* Pour ne pas coller aux bords de la case */
+  margin: 4px; 
+  
+  /* Gestion du contenu */
+  overflow: hidden; 
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  
+  /* L'ombre et l'interaction */
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
+  z-index: 10; /* Doit être AU-DESSUS de la grille */
+}
+
+.event-card:hover {
+  background-color: var(--primary);
+  color: white;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
