@@ -189,11 +189,6 @@ app.post('/api/schedule/:id', async (req, res) => {
 app.get('/auth/login', (req, res) => {
     const scope = 'identify'; // On demande juste l'identité (pseudo/avatar)
     const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=${scope}`;
-    console.log("------------------------------------------------");
-    console.log("👉 URL générée :", url);
-    console.log("👉 Redirect URI attendue :", DISCORD_REDIRECT_URI);
-    console.log("------------------------------------------------");
-
     res.redirect(url);
 });
 
