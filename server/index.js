@@ -138,11 +138,14 @@ app.get('/api/schedule/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/schedule/:id', async (req, res) => {
-    const { id } = req.params;
-    const { day, hour, course } = req.body; // ex: { day: "Mardi", hour: 10, course: "React" }
 
-    console.log(`-> Modification demandée : ${day} ${hour}h = ${course}`);
+//ajout edt
+app.post('/api/schedule/batch/:id', async (req, res) => {
+    const { id } = req.params;
+    const { updates } = req.body; 
+    // updates ressemble à : [ { day: "Lundi", hour: 8, course: "Maths" }, { day: "Lundi", hour: 9, course: "" } ]
+
+    console.log(`-> Batch update pour ID ${id} (${updates.length} changements)`);
 
     try {
         const doc = await getDoc();
@@ -150,40 +153,36 @@ app.post('/api/schedule/:id', async (req, res) => {
 
         if (!sheet) return res.status(404).json({ error: "Feuille introuvable" });
 
-        // On charge les cellules (Plage A1:F15 pour être large)
         await sheet.loadCells('A1:F15');
 
-        // 1. Trouver la colonne du jour (Lundi=1, Mardi=2...)
         const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-        const colIndex = days.indexOf(day) + 1; // +1 car col A est l'heure
 
-        // 2. Trouver la ligne de l'heure
-        const rowIndex = (parseInt(hour) - 8) + 1;
+        // On applique toutes les modifications demandées
+        updates.forEach(update => {
+            const colIndex = days.indexOf(update.day) + 1; // +1 car A=Heure
+            const rowIndex = (parseInt(update.hour) - 8) + 1; // 8h = row 2
 
-        if (colIndex < 1 || rowIndex < 0) {
-            return res.status(400).json({ error: "Jour ou heure invalide" });
-        }
+            if (colIndex >= 1 && rowIndex >= 0 && rowIndex <= 15) {
+                const cell = sheet.getCell(rowIndex, colIndex);
+                cell.value = update.course; // Vide ou nouveau nom
+            }
+        });
 
-        // 3. Modifier la cellule du cours
-        const cell = sheet.getCell(rowIndex, colIndex);
-        cell.value = course; // Si vide, ça efface le cours
-
-        // 4. Mettre à jour la date de modif (Case B14 -> index 13, 1)
+        // Mise à jour de la date (B14)
         const dateCell = sheet.getCell(13, 1);
         dateCell.value = new Date().toLocaleDateString('fr-FR');
 
-        // 5. Sauvegarder sur Google
         await sheet.saveUpdatedCells();
 
         res.json({ success: true });
 
     } catch (error) {
-        console.error("!!! ERREUR MODIF :", error);
+        console.error("!!! ERREUR BATCH :", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// --- NOUVEAU : ROUTES OAUTH DISCORD ---
+// --- ROUTES OAUTH DISCORD ---
 
 // 1. Route qui redirige l'utilisateur vers Discord
 app.get('/auth/login', (req, res) => {
