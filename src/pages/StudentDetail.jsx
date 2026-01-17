@@ -9,6 +9,9 @@ export default function StudentDetail({currentUser}) {
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
 
+    // Liste des admins : Karim, Nicolas, Zack et Florentin
+    const ADMIN_IDS = ["664134848029655040", "334027602618482691", "372029803852726273", "274567060875509760"];
+
     // État pour la Modal
     const [selectedEvent, setSelectedEvent] = useState(null); // Stocke l'event en cours de modif
 
@@ -24,6 +27,11 @@ export default function StudentDetail({currentUser}) {
     };
 
     useEffect(() => { loadData(); }, [id]);
+
+    // --- LOGIQUE DE PERMISSION ---
+    const isOwner = currentUser && (String(currentUser.id) === String(id));
+    const isAdmin = currentUser && ADMIN_IDS.includes(String(currentUser.id));
+    const canEdit = isOwner || isAdmin;
 
     // --- LOGIQUE DE SAUVEGARDE INTELLIGENTE ---
     const handleSaveBatch = async (original, newData, isDelete = false) => {        
@@ -65,9 +73,10 @@ export default function StudentDetail({currentUser}) {
 
         // 4. Envoi au serveur
         try {
+            const token = localStorage.getItem('authToken');
             const res = await fetch(`http://localhost:3001/api/schedule/batch/${id}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ updates })
             });
             if (res.ok) {
@@ -121,7 +130,6 @@ export default function StudentDetail({currentUser}) {
         return consolidatedEvents;
     }, [student]);
 
-    const canEdit = currentUser && (String(currentUser.id) === String(id));
 
     // --- RENDU ---
     if (loading) return <div style={{padding:"2rem"}}>Chargement...</div>;
