@@ -12,6 +12,28 @@ import { fileURLToPath } from 'url';
 import sqlite3 from 'sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 
+dotenv.config({ path: './.env' });
+if (!process.env.TOKEN_DISCORD) {
+    dotenv.config({ path: '../.env' });
+}
+import { Client, Collection, GatewayIntentBits } from 'discord.js';
+import { loadHandlers } from './discord/handlers/mainHandlers.js';
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+client.commands = new Collection();
+
+// On lance le chargement des commandes et la connexion du bot
+(async () => {
+    try {
+        await loadHandlers(client);
+        await client.login(TOKEN_DISCORD);
+        console.log("Bot Discord connecté avec succès !");
+    } catch (error) {
+        console.error("Erreur au démarrage du bot :", error);
+    }
+})();
+
+
 // Gestion des chemins .env
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../.env') });
