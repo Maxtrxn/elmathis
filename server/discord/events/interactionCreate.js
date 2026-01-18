@@ -1,11 +1,9 @@
 export default {
     name: 'interactionCreate',
-    once: false, // Cet événement s'active plusieurs fois (à chaque commande)
+    once: false,
     async execute(interaction, client) {
-        // Si ce n'est pas une commande, on ignore
         if (!interaction.isChatInputCommand()) return;
 
-        // On récupère la commande dans la collection du client
         const command = client.commands.get(interaction.commandName);
 
         if (!command) {
@@ -17,7 +15,18 @@ export default {
             await command.execute(interaction);
         } catch (error) {
             console.error(error);
-            await interaction.reply({ content: 'Il y a eu une erreur en exécutant cette commande !', ephemeral: true });
+
+            const msg = "Il y a eu une erreur en exécutant cette commande !";
+
+            if (interaction.deferred) {
+                await interaction.editReply(msg);
+
+            } else if (interaction.replied) {
+                await interaction.followUp({ content: msg, ephemeral: true });
+
+            } else {
+                await interaction.reply({ content: msg, ephemeral: true });
+            }
         }
     },
 };
