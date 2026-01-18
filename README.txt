@@ -13,16 +13,16 @@ Deux commandes sont disponibles :
 
 Usage du Site:
 Sur la page d'accueil il y a 3 choix possibles dans le bandeau superieur:
-    - Retour a la page d'acceuil
+    - Retour a la page d'accueil
     - Se connecter via son compte discord
         - cela nous envoie sur une page pour demander l'autorisation de se connecter avec votre compte
     - Afficher les emplois du temps
         - Quand on est déconnecté :
-            - affiche tout les emplois du temps de tout le monde
+            - affiche tout les emplois du temps de tous le monde
             - on peut les consulter
-        - Quand on est connécté :
+        - Quand on est connecté :
             - on peut en plus modifier notre emploi du temps
-        - Quand on est connécté en tant qu'admin(les admins sont nous trois et vous)
+        - Quand on est connecté en tant qu'admin(les admins sont nous trois et vous)
             - posiibilité de kick les utilisateurs connecté
             - possibilité de modifier tout les emplois du temps
 
