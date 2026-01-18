@@ -25,7 +25,7 @@ const {
 
 const app = express();
 const PORT = process.env.PORT;
-const SPREADSHEET_ID = '1D6Y-DXBZ1_uCkmbLrgiFUSIkHSbbCIrJYMeE4z6s1lw';
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 
 // --- 💾 BASE DE DONNÉES (SQLite) ---
 const db = new sqlite3.Database('./database.sqlite', (err) => {
