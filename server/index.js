@@ -1,3 +1,4 @@
+// --- IMPORTS ---
 import dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
 import express from 'express';
@@ -5,202 +6,75 @@ import cors from 'cors';
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import fs from 'fs';
-// --- CHARGEMENT DU FICHIER JSON ---
-const creds = JSON.parse(fs.readFileSync('./service-account.json', 'utf-8'));
-
-// Imports pour Discord
 import axios from 'axios';
 import dotenv from 'dotenv';
-dotenv.config({ path: './.env' });
-if (!process.env.TOKEN_DISCORD) {
-    dotenv.config({ path: '../.env' });
-}
-import { Client, Collection, GatewayIntentBits } from 'discord.js';
-import { loadHandlers } from './discord/handlers/mainHandlers.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import sqlite3 from 'sqlite3'; // <--- BDD
+import { v4 as uuidv4 } from 'uuid'; // <--- Générateur de Token
+
+// Gestion des chemins .env
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../.env') });
+if (!process.env.TOKEN_DISCORD) dotenv.config({ path: path.join(__dirname, '.env') });
+
+const {
+    TOKEN_DISCORD, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET,
+    DISCORD_REDIRECT_URI, FRONTEND_URL
+} = process.env;
 
 const app = express();
 const PORT = 3001;
+const SPREADSHEET_ID = '1ixpXyauEd1y11whPBxCXsNVolC1DC81k2xJv9Tuw-iI';
 
-// --- CONFIGURATION ---
-const SPREADSHEET_ID = '1ixpXyauEd1y11whPBxCXsNVolC1DC81k2xJv9Tuw-iI'; 
+// --- 💾 BASE DE DONNÉES (SQLite) ---
+const db = new sqlite3.Database('./database.sqlite', (err) => {
+    if (err) console.error("Erreur BDD:", err.message);
+    else console.log("💾 Connecté à la base de données SQLite.");
+});
+
+// Création de la table session si elle n'existe pas
+db.run(`CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    discord_id TEXT,
+    username TEXT,
+    avatar TEXT,
+    created_at INTEGER,
+    expires_at INTEGER
+)`);
 
 app.use(cors());
 app.use(express.json());
 
-// --- CONFIGURATION DISCORD ---
-// Remplace ces valeurs par celles de ton portail développeur !
-const TOKEN_DISCORD = process.env.TOKEN_DISCORD;
-const {
-    DISCORD_CLIENT_ID,
-    DISCORD_CLIENT_SECRET,
-    DISCORD_REDIRECT_URI,
-    FRONTEND_URL,
-} = process.env;
-
-// --- 🤖 INITIALISATION DU BOT DISCORD ---
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-client.commands = new Collection();
-
-// On lance le chargement des commandes et la connexion du bot
-(async () => {
-    try {
-        await loadHandlers(client);
-        await client.login(TOKEN_DISCORD);
-        console.log("🤖 Bot Discord connecté avec succès !");
-    } catch (error) {
-        console.error("❌ Erreur au démarrage du bot :", error);
-    }
-})();
-
-// --- FONCTIONS GOOGLE SHEET ---
-
-// Auth
+// --- GOOGLE SHEET SETUP ---
+const creds = JSON.parse(fs.readFileSync('./service-account.json', 'utf-8'));
 const serviceAccountAuth = new JWT({
-  email: creds.client_email,
-  key: creds.private_key,
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    email: creds.client_email,
+    key: creds.private_key,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
 async function getDoc() {
-  const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
-  await doc.loadInfo();
-  return doc;
+    const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
+    await doc.loadInfo();
+    return doc;
 }
 
 // --- ROUTES ---
 
-// 1. Route de test simple (pour vérifier que le serveur vit)
-app.get('/', (req, res) => {
-    res.send("Le serveur marche ! Tentez /api/students");
-});
-
-// 2. La liste des étudiants
-app.get('/api/students', async (req, res) => {
-    console.log("-> Reçu : Demande de la liste des étudiants");
-    try {
-        const doc = await getDoc();
-        const sheet = doc.sheetsByIndex[0]; // Feuille 1
-        const rows = await sheet.getRows();
-
-        // On log pour voir ce qu'on trouve
-        console.log(`-> J'ai trouvé ${rows.length} lignes dans le Sheet.`);
-
-        const students = rows.map(row => ({
-            name: row.get('Nom'), // suppose que tu as bien mis 'Nom' en A1
-            id: row.get('ID')     // suppose que tu as bien mis 'ID' en B1
-        }));
-
-        res.json(students);
-    } catch (error) {
-        console.error("!!! ERREUR LISTE :", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// 3. Le détail (Emploi du temps)
-app.get('/api/schedule/:id', async (req, res) => {
-    const { id } = req.params;
-    console.log(`-> Reçu : Demande EDT pour ID ${id}`);
-    
-    try {
-        const doc = await getDoc();
-        // Recherche de l'onglet qui contient l'ID dans son titre
-        const sheet = doc.sheetsByIndex.find(s => s.title.includes(id));
-
-        if (!sheet) {
-            console.log(`-> Pas de feuille trouvée pour l'ID ${id}`);
-            return res.status(404).json({ error: "Feuille introuvable pour cet ID" });
-        }
-
-        await sheet.loadCells('A1:F15');
-        
-        // Sécurité : si la case date est vide, on met un texte par défaut
-        let lastUpdate = "Inconnue";
-        try { lastUpdate = sheet.getCell(13, 1).value || "Non daté"; } catch(e) {}
-
-        const schedule = { Lundi: [], Mardi: [], Mercredi: [], Jeudi: [], Vendredi: [] };
-        const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-
-        for (let row = 1; row <= 10; row++) {
-            const hour = sheet.getCell(row, 0).value;
-            if(!hour) continue; // Si pas d'heure, on passe
-
-            days.forEach((day, index) => {
-                const course = sheet.getCell(row, index + 1).value;
-                if (course) schedule[day].push(`${hour}h: ${course}`);
-            });
-        }
-
-        res.json({ id, name: sheet.title, lastUpdate, schedule });
-
-    } catch (error) {
-        console.error("!!! ERREUR EDT :", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-//ajout edt
-app.post('/api/schedule/batch/:id', async (req, res) => {
-    const { id } = req.params;
-    const { updates } = req.body; 
-    // updates ressemble à : [ { day: "Lundi", hour: 8, course: "Maths" }, { day: "Lundi", hour: 9, course: "" } ]
-
-    console.log(`-> Batch update pour ID ${id} (${updates.length} changements)`);
-
-    try {
-        const doc = await getDoc();
-        const sheet = doc.sheetsByIndex.find(s => s.title.includes(id));
-
-        if (!sheet) return res.status(404).json({ error: "Feuille introuvable" });
-
-        await sheet.loadCells('A1:F15');
-
-        const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-
-        // On applique toutes les modifications demandées
-        updates.forEach(update => {
-            const colIndex = days.indexOf(update.day) + 1; // +1 car A=Heure
-            const rowIndex = (parseInt(update.hour) - 8) + 1; // 8h = row 2
-
-            if (colIndex >= 1 && rowIndex >= 0 && rowIndex <= 15) {
-                const cell = sheet.getCell(rowIndex, colIndex);
-                cell.value = update.course; // Vide ou nouveau nom
-            }
-        });
-
-        // Mise à jour de la date (B14)
-        const dateCell = sheet.getCell(13, 1);
-        dateCell.value = new Date().toLocaleDateString('fr-FR');
-
-        await sheet.saveUpdatedCells();
-
-        res.json({ success: true });
-
-    } catch (error) {
-        console.error("!!! ERREUR BATCH :", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// --- ROUTES OAUTH DISCORD ---
-
-// 1. Route qui redirige l'utilisateur vers Discord
+// 1. Authentification Discord (Modifiée pour BDD)
 app.get('/auth/login', (req, res) => {
-    const scope = 'identify'; // On demande juste l'identité (pseudo/avatar)
+    const scope = 'identify';
     const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=${scope}`;
     res.redirect(url);
 });
 
-// 2. Route de retour (Callback)
 app.get('/auth/discord/callback', async (req, res) => {
     const { code } = req.query;
-
-    if (!code) {
-        return res.status(400).send("Pas de code fourni par Discord.");
-    }
+    if (!code) return res.status(400).send("Pas de code.");
 
     try {
-        // A. Échanger le code contre un token d'accès
+        // Echange Code -> Access Token
         const tokenResponse = await axios.post(
             'https://discord.com/api/oauth2/token',
             new URLSearchParams({
@@ -214,31 +88,147 @@ app.get('/auth/discord/callback', async (req, res) => {
             { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
         );
 
-        const accessToken = tokenResponse.data.access_token;
-
-        // B. Utiliser le token pour récupérer les infos de l'utilisateur
+        // Récupération User Info
         const userResponse = await axios.get('https://discord.com/api/users/@me', {
-            headers: { Authorization: `Bearer ${accessToken}` },
+            headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` },
         });
 
-        const user = userResponse.data; // { id, username, avatar, discriminator, ... }
+        const user = userResponse.data;
 
-        // C. Rediriger vers le Frontend avec les infos en paramètre d'URL
-        // (Méthode simple pour éviter une base de données pour l'instant)
-        const redirectUrl = `${FRONTEND_URL}/?username=${encodeURIComponent(user.username)}&id=${user.id}&avatar=${user.avatar}`;
-        res.redirect(redirectUrl);
+        // --- CRÉATION DU TOKEN EN BDD ---
+        const token = uuidv4(); // Génère un token unique (ex: "550e8400-e29b...")
+        const now = Date.now();
+        const expiresAt = now + (10 * 60 * 1000); // Expire dans 10 minutes
+
+        // On insère dans la BDD
+        db.run(`INSERT INTO sessions (token, discord_id, username, avatar, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
+            [token, user.id, user.username, user.avatar, now, expiresAt],
+            (err) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).send("Erreur BDD");
+                }
+                // On redirige vers le front AVEC LE TOKEN SEULEMENT (plus sécurisé)
+                res.redirect(`${FRONTEND_URL}/?token=${token}`);
+            }
+        );
 
     } catch (error) {
-        console.error("Erreur OAuth Discord:", error);
-        res.status(500).send("Erreur lors de la connexion Discord.");
+        console.error("Erreur Auth:", error);
+        res.status(500).send("Erreur Auth.");
     }
 });
 
-// --- LANCEMENT ---
-app.listen(PORT, () => {
-    console.log(`=========================================`);
-    console.log(`🚀 SERVEUR TOUT-EN-UN PRÊT SUR LE PORT ${PORT}`);
-    console.log(`Testez ce lien : http://localhost:${PORT}/api/students`);
-    console.log(`=========================================`);
+// 2. Route pour que le front récupère l'user via le token
+app.get('/api/auth/me', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1]; // "Bearer <token>"
+
+    if (!token) return res.status(401).json({ error: "Token manquant" });
+
+    // On cherche le token dans la BDD
+    db.get("SELECT * FROM sessions WHERE token = ?", [token], (err, row) => {
+        if (err) return res.status(500).json({ error: "Erreur BDD" });
+
+        if (!row) return res.status(401).json({ error: "Token invalide" });
+
+        // Vérification expiration
+        if (Date.now() > row.expires_at) {
+            // Optionnel : on pourrait supprimer le token expiré ici
+            return res.status(401).json({ error: "Session expirée" });
+        }
+
+        // Tout est bon, on renvoie l'user
+        res.json({
+            id: row.discord_id,
+            username: row.username,
+            avatar: row.avatar,
+            token: row.token // On renvoie le token pour confirmation
+        });
+    });
 });
 
+// 3. ADMIN : Liste des utilisateurs connectés
+app.get('/api/admin/users', (req, res) => {
+    // Dans la vraie vie, il faudrait vérifier ici que le demandeur EST admin
+    // Pour l'exercice, on laisse ouvert ou on check le header token comme dans /me
+    db.all("SELECT * FROM sessions", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // On filtre ceux qui ne sont pas expirés pour l'affichage
+        const activeSessions = rows.filter(r => r.expires_at > Date.now());
+        res.json(activeSessions);
+    });
+});
+
+// 4. ADMIN : Déconnecter (KICK) un utilisateur
+app.delete('/api/admin/users/:token', (req, res) => {
+    const { token } = req.params;
+    db.run("DELETE FROM sessions WHERE token = ?", [token], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Utilisateur déconnecté", changes: this.changes });
+    });
+});
+
+// --- ROUTES SHEET EXISTANTES (ETUDIANTS, BATCH UPDATE...) ---
+// (Garde tes routes existantes /api/students, /api/schedule/:id, /api/schedule/batch/:id ici)
+// ...
+app.get('/api/students', async (req, res) => {
+    try {
+        const doc = await getDoc();
+        const sheet = doc.sheetsByIndex[0];
+        const rows = await sheet.getRows();
+        const students = rows.map(row => ({ name: row.get('Nom'), id: row.get('ID') }));
+        res.json(students);
+    } catch (e) { res.status(500).json({error:e.message}); }
+});
+
+app.get('/api/schedule/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const doc = await getDoc();
+        const sheet = doc.sheetsByIndex.find(s => s.title.includes(id));
+        if (!sheet) return res.status(404).json({ error: "Introuvable" });
+        await sheet.loadCells('A1:F15');
+        let lastUpdate = "Inconnue";
+        try { lastUpdate = sheet.getCell(13, 1).value || "Non daté"; } catch(e) {}
+        const schedule = { Lundi: [], Mardi: [], Mercredi: [], Jeudi: [], Vendredi: [] };
+        const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+        for (let row = 1; row <= 10; row++) {
+            const hour = sheet.getCell(row, 0).value;
+            if(!hour) continue;
+            days.forEach((day, index) => {
+                const course = sheet.getCell(row, index + 1).value;
+                if (course) schedule[day].push(`${hour}h: ${course}`);
+            });
+        }
+        res.json({ id, name: sheet.title, lastUpdate, schedule });
+    } catch (e) { res.status(500).json({error:e.message}); }
+});
+
+app.post('/api/schedule/batch/:id', async (req, res) => {
+    // ... Copie ta route batch existante ici ...
+    const { id } = req.params;
+    const { updates } = req.body;
+    try {
+        const doc = await getDoc();
+        const sheet = doc.sheetsByIndex.find(s => s.title.includes(id));
+        if (!sheet) return res.status(404).json({ error: "Feuille introuvable" });
+        await sheet.loadCells('A1:F15');
+        const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+        updates.forEach(update => {
+            const colIndex = days.indexOf(update.day) + 1;
+            const rowIndex = (parseInt(update.hour) - 8) + 1;
+            if (colIndex >= 1 && rowIndex >= 0 && rowIndex <= 15) {
+                const cell = sheet.getCell(rowIndex, colIndex);
+                cell.value = update.course;
+            }
+        });
+        const dateCell = sheet.getCell(13, 1);
+        dateCell.value = new Date().toLocaleDateString('fr-FR');
+        await sheet.saveUpdatedCells();
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.listen(PORT, () => console.log(`🚀 Serveur BDD prêt sur ${PORT}`));

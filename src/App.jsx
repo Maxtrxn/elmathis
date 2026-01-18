@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react'; // Ajout de useCallback
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -9,47 +9,81 @@ function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // 1. Vérifie l'URL au retour de Discord
-    const params = new URLSearchParams(window.location.search);
-    const discordId = params.get('id');
-    const username = params.get('username');
-    const avatar = params.get('avatar');
+  // On utilise useCallback pour stabiliser la fonction et éviter les avertissements de dépendances
+  const verifyToken = useCallback(async (token) => {
+    try {
+      const res = await fetch('http://localhost:3001/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-    if (discordId && username) {
-      // Nouvelle connexion détectée
-      const userData = { id: discordId, username, avatar };
-      localStorage.setItem('user', JSON.stringify(userData)); // Sauvegarde
-      setUser(userData);
-      navigate('/'); // Nettoie l'URL
-    } else {
-      // 2. Vérifie le stockage local (si on rafraîchit la page)
-      const savedUser = localStorage.getItem('user');
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
+      if (res.ok) {
+        const userData = await res.json();
+        localStorage.setItem('authToken', token);
+        setUser(userData);
+        return true; // Succès
+      } else {
+        console.log("Token invalide ou session expirée");
+        handleLogout();
+        return false; // Échec
       }
+    } catch (err) {
+      console.error(err);
+      return false;
     }
-  }, [navigate]);
+  }, []); // [] car elle ne dépend de rien d'externe qui change
 
+  // Fonction de déconnexion définie ici pour être utilisée par verifyToken si besoin
+  // (Note: verifyToken utilise handleLogout, mais pour éviter les cycles, on peut simplifier)
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
     setUser(null);
     navigate('/');
   };
 
+  useEffect(() => {
+    // On crée une fonction asynchrone DANS l'effet
+    const initAuth = async () => {
+      // 1. Retour de Discord ? (On a un ?token=... dans l'URL)
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+
+      if (urlToken) {
+        // On ATTEND que la vérification soit finie avant de naviguer
+        const isValid = await verifyToken(urlToken);
+        if (isValid) {
+          // Nettoyage de l'URL uniquement si c'est bon
+          navigate('/');
+        }
+      } else {
+        // 2. Restauration session (Token stocké)
+        const savedToken = localStorage.getItem('authToken');
+        if (savedToken) {
+          verifyToken(savedToken);
+        }
+      }
+    };
+
+    initAuth();
+  }, [navigate, verifyToken]); // On liste les dépendances proprement
+
   return (
-    <>
-      <Navbar user={user} onLogout={handleLogout} />
-      
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/timetables" element={<TimetableList />} />
-        
-        {/* On donne l'utilisateur connecté à la page de détail */}
-        <Route path="/student/:id" element={<StudentDetail currentUser={user} />} />
-        
-      </Routes>
-    </>
+      <>
+        <Navbar user={user} onLogout={handleLogout} />
+        <Routes>
+          <Route path="/" element={<Home />} />
+
+          {/* On passe bien currentUser ici */}
+          <Route
+              path="/timetables"
+              element={<TimetableList currentUser={user} />}
+          />
+
+          <Route
+              path="/student/:id"
+              element={<StudentDetail currentUser={user} />}
+          />
+        </Routes>
+      </>
   );
 }
 
