@@ -6,16 +6,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export async function loadHandlers(client) {
-    // --- CHARGEMENT DES COMMANDES ---
     const commandsPath = path.join(__dirname, '../commands');
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
     for (const file of commandFiles) {
         const filePath = path.join(commandsPath, file);
-        // Import dynamique du fichier
         const command = await import(pathToFileURL(filePath).href);
 
-        // On stocke la commande dans la collection du client
         if ('data' in command.default && 'execute' in command.default) {
             client.commands.set(command.default.data.name, command.default);
         } else {
@@ -23,7 +20,6 @@ export async function loadHandlers(client) {
         }
     }
 
-    // --- CHARGEMENT DES ÉVÉNEMENTS ---
     const eventsPath = path.join(__dirname, '../events');
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
