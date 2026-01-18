@@ -177,8 +177,15 @@ app.get('/api/students', async (req, res) => {
     try {
         const doc = await getDoc();
         const sheet = doc.sheetsByIndex[0];
-        const rows = await sheet.getRows();
-        const students = rows.map(row => ({ name: row.get('Nom'), id: row.get('ID') }));
+        await sheet.loadCells();
+        const students = [];
+        for (let i = 0; i < sheet.rowCount; i++) {
+            const name = sheet.getCell(i, 0).value;
+            const id = sheet.getCell(i, 1).value;
+            if (name && id) {
+                students.push({ name: String(name), id: String(id) });
+            }
+        }
         res.json(students);
     } catch (e) { res.status(500).json({error:e.message}); }
 });
