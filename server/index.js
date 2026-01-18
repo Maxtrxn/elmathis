@@ -167,33 +167,35 @@ app.delete('/api/admin/users/:token', (req, res) => {
 
 // Routes Sheets
 app.get('/api/students', async (req, res) => {
+
     try {
+
         const doc = await getDoc();
+
         const sheet = doc.sheetsByIndex[0];
 
-        // Optimisation : on charge juste les colonnes A et B (sur 100 lignes max pour être sûr)
-        // loadCells() tout court peut être très lent s'il y a 1000 lignes vides
-        await sheet.loadCells('A1:B100');
+        await sheet.loadCells();
 
         const students = [];
-        // On boucle jusqu'à 100 (ou sheet.rowCount si tu préfères, mais attention aux vides)
-        const limit = Math.min(sheet.rowCount, 100);
 
-        for (let i = 0; i < limit; i++) {
+        for (let i = 0; i < sheet.rowCount; i++) {
+
             const name = sheet.getCell(i, 0).value;
+
             const id = sheet.getCell(i, 1).value;
 
-            // On vérifie qu'on a bien des données
             if (name && id) {
+
                 students.push({ name: String(name), id: String(id) });
+
             }
+
         }
+
         res.json(students);
-    } catch (e) {
-        // C'est ICI qu'on verra si c'est une erreur 403 (Permission) ou autre chose
-        console.error("❌ ERREUR SHEET :", e);
-        res.status(500).json({error:e.message});
-    }
+
+    } catch (e) { res.status(500).json({error:e.message}); }
+
 });
 
 app.get('/api/schedule/:id', async (req, res) => {
