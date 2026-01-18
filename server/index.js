@@ -24,7 +24,7 @@ const {
 } = process.env;
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT;
 const SPREADSHEET_ID = '1ixpXyauEd1y11whPBxCXsNVolC1DC81k2xJv9Tuw-iI';
 
 // --- 💾 BASE DE DONNÉES (SQLite) ---
