@@ -12,7 +12,6 @@ export default function StudentDetail({currentUser}) {
     // Liste des admins : Karim, Nicolas, Zack et Florentin
     const ADMIN_IDS = ["664134848029655040", "334027602618482691", "372029803852726273", "274567060875509760"];
 
-    // État pour la Modal
     const [selectedEvent, setSelectedEvent] = useState(null); // Stocke l'event en cours de modif
 
     const loadData = () => {
@@ -26,52 +25,53 @@ export default function StudentDetail({currentUser}) {
             .catch(() => setLoading(false));
     };
 
+
+
     useEffect(() => { loadData(); }, [id]);
 
-    // --- LOGIQUE DE PERMISSION ---
+    // Logique de Permission
     const isOwner = currentUser && (String(currentUser.id) === String(id));
     const isAdmin = currentUser && ADMIN_IDS.includes(String(currentUser.id));
     const canEdit = isOwner || isAdmin;
 
-    // --- LOGIQUE DE SAUVEGARDE INTELLIGENTE ---
-    const handleSaveBatch = async (original, newData, isDelete = false) => {        
+    // Logique de Sauvegarde
+    const handleSaveBatch = async (original, newData, isDelete = false) => {
         const updates = [];
         const day = original.dayName;
 
-        // 1. Calculer l'ancien range complet (ex: 8h à 18h)
+        // Calculer l'ancien range complet
         const oldStart = original.startHour;
         const oldEnd = original.startHour + original.duration - 1;
 
-        // 2. Si suppression totale
+        // Si suppression totale
         if (isDelete) {
             for (let h = oldStart; h <= oldEnd; h++) {
                 updates.push({ day, hour: h, course: "" });
             }
-        } 
+        }
         else {
-            // 3. Modification / Redimensionnement
+            // Modification / Redimensionnement
             const newStart = parseInt(newData.startHour);
             const newEnd = parseInt(newData.endHour); // inclus
 
-            // A. On nettoie tout l'ancien range d'abord (pour être sûr)            
-            // Pour faire propre : on parcourt l'union des deux plages (ancienne et nouvelle)
+            // On nettoie tout l'ancien range d'abord
             const minH = Math.min(oldStart, newStart);
             const maxH = Math.max(oldEnd, newEnd);
 
             for (let h = minH; h <= maxH; h++) {
-                let val = ""; // Par défaut on vide
+                let val = "";
 
-                // Si l'heure h est dans la NOUVELLE plage, on met le cours
+                // Si l'heure h est dans la nouvelle plage, on met le cours
                 if (h >= newStart && h <= newEnd) {
                     val = newData.name;
                 }
-                // Sinon, si elle était dans l'ANCIENNE plage mais plus dans la nouvelle, elle restera "" (vide)
-                
+                // Sinon elle était dans l'ancienne plage mais plus dans la nouvelle, elle restera vide
+
                 updates.push({ day, hour: h, course: val });
             }
         }
 
-        // 4. Envoi au serveur
+        // Envoi au serveur
         try {
             const token = localStorage.getItem('authToken');
             const res = await fetch(`http://localhost:3001/api/schedule/batch/${id}`, {
@@ -80,8 +80,8 @@ export default function StudentDetail({currentUser}) {
                 body: JSON.stringify({ updates })
             });
             if (res.ok) {
-                setSelectedEvent(null); // Ferme la modal
-                loadData(); // Recharge
+                setSelectedEvent(null);
+                loadData();
             } else {
                 alert("Erreur serveur");
             }
@@ -90,7 +90,7 @@ export default function StudentDetail({currentUser}) {
         }
     };
 
-    // --- CALCULS DE GRILLE (inchangés) ---
+    // Calculs des grilles
     const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
     const startHour = 8;
     const endHour = 17;
@@ -108,7 +108,7 @@ export default function StudentDetail({currentUser}) {
             parsedCourses.sort((a, b) => a.hour - b.hour);
 
             if (parsedCourses.length > 0) {
-                let currentBlock = { 
+                let currentBlock = {
                     dayIndex: dayIndex + 2,
                     startHour: parsedCourses[0].hour,
                     duration: 1,
@@ -131,21 +131,19 @@ export default function StudentDetail({currentUser}) {
     }, [student]);
 
 
-    // --- RENDU ---
+    // Rendu
     if (loading) return <div style={{padding:"2rem"}}>Chargement...</div>;
     if (!student) return <div style={{padding:"2rem"}}>Étudiant introuvable</div>;
 
     return (
         <div style={{ padding: "2rem" }}>
-             {/* Header inchangé */}
              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
                 <Link to="/timetables" style={{color: 'var(--text-muted)'}}>← Retour</Link>
                 <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
                     {canEdit ? (
-                        <button 
+                        <button
                             onClick={() => setIsEditing(!isEditing)}
                             style={{
-                                /* Ton style existant... */
                                 backgroundColor: isEditing ? '#ef4444' : 'var(--primary)',
                                 border: isEditing ? '2px solid white' : 'none',
                                 color: 'white', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer',
@@ -156,7 +154,6 @@ export default function StudentDetail({currentUser}) {
                             {isEditing ? "Terminer" : "Modifier"}
                         </button>
                     ) : (
-                        // Petit message discret pour les visiteurs
                         <span style={{color:'gray', fontSize:'0.8rem', fontStyle:'italic'}}>
                             Mode lecture seule
                         </span>
@@ -168,20 +165,18 @@ export default function StudentDetail({currentUser}) {
                 </div>
             </div>
 
-            {/* LA GRILLE */}
             <div className="calendar-container" style={{ borderColor: isEditing ? '#ef4444' : 'var(--border)' }}>
                 <div className="calendar-header" style={{borderRight:'1px solid var(--border)'}}></div>
                 {days.map(day => <div key={day} className="calendar-header">{day}</div>)}
                 {Array.from({ length: totalHours }).map((_, i) => (
                     <div key={i} className="time-label" style={{ gridRow: i + 2 }}>{startHour + i}h</div>
                 ))}
-                
-                {/* Cases vides cliquables */}
+
                 {Array.from({ length: totalHours }).map((_, hIndex) => (
                     days.map((day, dIndex) => {
                         const currentHour = startHour + hIndex;
                         return (
-                            <div 
+                            <div
                                 key={`grid-${hIndex}-${dIndex}`}
                                 className="grid-cell-bg"
                                 style={{
@@ -191,7 +186,7 @@ export default function StudentDetail({currentUser}) {
                                 }}
                                 onClick={() => {
                                     if(isEditing && canEdit) {
-                                        // Clic sur vide : on crée un nouveau bloc de 1h
+                                        // Clic sur une case vide -> crée un nouveau bloc
                                         setSelectedEvent({
                                             dayName: day,
                                             startHour: currentHour,
@@ -206,11 +201,10 @@ export default function StudentDetail({currentUser}) {
                     })
                 ))}
 
-                {/* Événements cliquables */}
                 {events.map((event, index) => {
                     const rowStart = (event.startHour - startHour) + 2;
                     return (
-                        <div 
+                        <div
                             key={index}
                             className="event-card"
                             style={{
@@ -235,10 +229,10 @@ export default function StudentDetail({currentUser}) {
                 })}
             </div>
 
-            {/* --- LE MODAL (POPUP) --- */}
+            {/* Fenetre pour modifier/créer un créneau */}
             {selectedEvent && (
-                <EditModal 
-                    event={selectedEvent} 
+                <EditModal
+                    event={selectedEvent}
                     onClose={() => setSelectedEvent(null)}
                     onSave={handleSaveBatch}
                     hoursRange={[8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}
@@ -248,12 +242,10 @@ export default function StudentDetail({currentUser}) {
     );
 }
 
-// --- COMPOSANT MODAL INTERNE ---
+// composant modal interne
 function EditModal({ event, onClose, onSave, hoursRange }) {
-    // On initialise le state avec les valeurs de l'event cliqué
     const [name, setName] = useState(event.name);
     const [startH, setStartH] = useState(event.startHour);
-    // L'heure de fin (ex: si start 8, durée 2 => finit à 9h inclus)
     const [endH, setEndH] = useState(event.startHour + event.duration - 1);
 
     return (

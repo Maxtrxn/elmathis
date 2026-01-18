@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'; // Ajout de useCallback
+import { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -9,7 +9,7 @@ function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // On utilise useCallback pour stabiliser la fonction et éviter les avertissements de dépendances
+  // verifyToken est asynchrone donc pas de soucis de définir handleLogout plus bas
   const verifyToken = useCallback(async (token) => {
     try {
       const res = await fetch('http://localhost:3001/api/auth/me', {
@@ -30,10 +30,8 @@ function App() {
       console.error(err);
       return false;
     }
-  }, []); // [] car elle ne dépend de rien d'externe qui change
+  }, []);
 
-  // Fonction de déconnexion définie ici pour être utilisée par verifyToken si besoin
-  // (Note: verifyToken utilise handleLogout, mais pour éviter les cycles, on peut simplifier)
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     setUser(null);
@@ -41,21 +39,21 @@ function App() {
   };
 
   useEffect(() => {
-    // On crée une fonction asynchrone DANS l'effet
+    // On crée une fonction asynchrone dans useEffect
     const initAuth = async () => {
-      // 1. Retour de Discord ? (On a un ?token=... dans l'URL)
+      // On attend un retour de discord
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get('token');
 
       if (urlToken) {
-        // On ATTEND que la vérification soit finie avant de naviguer
+        // On attend la vérification
         const isValid = await verifyToken(urlToken);
         if (isValid) {
-          // Nettoyage de l'URL uniquement si c'est bon
+          // Nettoyage de l'URL
           navigate('/');
         }
       } else {
-        // 2. Restauration session (Token stocké)
+        // Restauration session
         const savedToken = localStorage.getItem('authToken');
         if (savedToken) {
           verifyToken(savedToken);
@@ -64,7 +62,7 @@ function App() {
     };
 
     initAuth();
-  }, [navigate, verifyToken]); // On liste les dépendances proprement
+  }, [navigate, verifyToken]);
 
   return (
       <>
@@ -72,7 +70,6 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
 
-          {/* On passe bien currentUser ici */}
           <Route
               path="/timetables"
               element={<TimetableList currentUser={user} />}
