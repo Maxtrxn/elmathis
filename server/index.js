@@ -1,4 +1,3 @@
-// --- IMPORTS ---
 import dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
 import express from 'express';
@@ -10,8 +9,8 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import sqlite3 from 'sqlite3'; // <--- BDD
-import { v4 as uuidv4 } from 'uuid'; // <--- Générateur de Token
+import sqlite3 from 'sqlite3';
+import { v4 as uuidv4 } from 'uuid';
 
 // Gestion des chemins .env
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,12 +24,14 @@ const {
 
 const app = express();
 const PORT = process.env.PORT;
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
+
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+
 
 // --- 💾 BASE DE DONNÉES (SQLite) ---
 const db = new sqlite3.Database('./database.sqlite', (err) => {
-    if (err) console.error("Erreur BDD:", err.message);
-    else console.log("💾 Connecté à la base de données SQLite.");
+    if (err) console.error("Erreur DB:", err.message);
+    else console.log("Connecté à la base de données SQLite.");
 });
 
 // Création de la table session si elle n'existe pas
@@ -46,7 +47,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sessions (
 app.use(cors());
 app.use(express.json());
 
-// --- GOOGLE SHEET SETUP ---
+// google sheet setup
 const creds = JSON.parse(fs.readFileSync('./service-account.json', 'utf-8'));
 const serviceAccountAuth = new JWT({
     email: creds.client_email,
@@ -60,9 +61,9 @@ async function getDoc() {
     return doc;
 }
 
-// --- ROUTES ---
+// Routes
 
-// 1. Authentification Discord (Modifiée pour BDD)
+// Authentification Discord
 app.get('/auth/login', (req, res) => {
     const scope = 'identify';
     const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=${scope}`;
@@ -74,7 +75,6 @@ app.get('/auth/discord/callback', async (req, res) => {
     if (!code) return res.status(400).send("Pas de code.");
 
     try {
-        // Echange Code -> Access Token
         const tokenResponse = await axios.post(
             'https://discord.com/api/oauth2/token',
             new URLSearchParams({
@@ -95,12 +95,12 @@ app.get('/auth/discord/callback', async (req, res) => {
 
         const user = userResponse.data;
 
-        // --- CRÉATION DU TOKEN EN BDD ---
-        const token = uuidv4(); // Génère un token unique (ex: "550e8400-e29b...")
+        // Token dans la DB
+        const token = uuidv4();
         const now = Date.now();
         const expiresAt = now + (10 * 60 * 1000); // Expire dans 10 minutes
 
-        // On insère dans la BDD
+        // On insère dans la DB
         db.run(`INSERT INTO sessions (token, discord_id, username, avatar, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
             [token, user.id, user.username, user.avatar, now, expiresAt],
             (err) => {
@@ -108,7 +108,7 @@ app.get('/auth/discord/callback', async (req, res) => {
                     console.error(err);
                     return res.status(500).send("Erreur BDD");
                 }
-                // On redirige vers le front AVEC LE TOKEN SEULEMENT (plus sécurisé)
+                // On redirige vers le front avec le token
                 res.redirect(`${FRONTEND_URL}/?token=${token}`);
             }
         );
@@ -119,14 +119,14 @@ app.get('/auth/discord/callback', async (req, res) => {
     }
 });
 
-// 2. Route pour que le front récupère l'user via le token
+// Route pour que le front récupère l'user via le token
 app.get('/api/auth/me', (req, res) => {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // "Bearer <token>"
 
     if (!token) return res.status(401).json({ error: "Token manquant" });
 
-    // On cherche le token dans la BDD
+    // On cherche le token dans la DB
     db.get("SELECT * FROM sessions WHERE token = ?", [token], (err, row) => {
         if (err) return res.status(500).json({ error: "Erreur BDD" });
 
@@ -134,24 +134,21 @@ app.get('/api/auth/me', (req, res) => {
 
         // Vérification expiration
         if (Date.now() > row.expires_at) {
-            // Optionnel : on pourrait supprimer le token expiré ici
             return res.status(401).json({ error: "Session expirée" });
         }
 
-        // Tout est bon, on renvoie l'user
+        // On renvoie l'user
         res.json({
             id: row.discord_id,
             username: row.username,
             avatar: row.avatar,
-            token: row.token // On renvoie le token pour confirmation
+            token: row.token // On envoie le token pour confirmation
         });
     });
 });
 
-// 3. ADMIN : Liste des utilisateurs connectés
+// Liste des utilisateurs connectés pour les Admins
 app.get('/api/admin/users', (req, res) => {
-    // Dans la vraie vie, il faudrait vérifier ici que le demandeur EST admin
-    // Pour l'exercice, on laisse ouvert ou on check le header token comme dans /me
     db.all("SELECT * FROM sessions", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
 
@@ -161,7 +158,7 @@ app.get('/api/admin/users', (req, res) => {
     });
 });
 
-// 4. ADMIN : Déconnecter (KICK) un utilisateur
+// Déconnecter un utilisateur
 app.delete('/api/admin/users/:token', (req, res) => {
     const { token } = req.params;
     db.run("DELETE FROM sessions WHERE token = ?", [token], function(err) {
@@ -170,9 +167,7 @@ app.delete('/api/admin/users/:token', (req, res) => {
     });
 });
 
-// --- ROUTES SHEET EXISTANTES (ETUDIANTS, BATCH UPDATE...) ---
-// (Garde tes routes existantes /api/students, /api/schedule/:id, /api/schedule/batch/:id ici)
-// ...
+// Routes Sheets
 app.get('/api/students', async (req, res) => {
     try {
         const doc = await getDoc();
@@ -187,7 +182,9 @@ app.get('/api/students', async (req, res) => {
             }
         }
         res.json(students);
+
     } catch (e) { res.status(500).json({error:e.message}); }
+
 });
 
 app.get('/api/schedule/:id', async (req, res) => {
@@ -214,7 +211,6 @@ app.get('/api/schedule/:id', async (req, res) => {
 });
 
 app.post('/api/schedule/batch/:id', async (req, res) => {
-    // ... Copie ta route batch existante ici ...
     const { id } = req.params;
     const { updates } = req.body;
     try {
@@ -238,4 +234,4 @@ app.post('/api/schedule/batch/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.listen(PORT, () => console.log(`🚀 Serveur BDD prêt sur ${PORT}`));
+app.listen(PORT, () => console.log(`Serveur DB prêt sur ${PORT}`));

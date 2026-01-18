@@ -5,7 +5,7 @@ import { faTrash, faUserSecret } from '@fortawesome/free-solid-svg-icons';
 
 export default function TimetableList({currentUser}) {
     const [students, setStudents] = useState([]);
-    const [loading, setLoading] = useState(true); // <--- Initialisé à true
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -41,32 +41,33 @@ export default function TimetableList({currentUser}) {
     };
 
     useEffect(() => {
-        // 1. Chargement liste étudiants
+        // Chargement liste emplois du temps
         fetch('http://localhost:3001/api/students')
             .then(res => {
                 if (!res.ok) throw new Error("Erreur lors de la récupération");
                 return res.json();
             })
             .then(data => {
-                // Si ça marche
+                // Chargement réussi
                 if (Array.isArray(data)) setStudents(data);
-                setLoading(false); // <--- IMPORTANT : On arrête le chargement
+                setLoading(false);
             })
             .catch(err => {
-                // Si ça rate
+                // Erreur
                 console.error(err);
                 setError(err.message);
-                setLoading(false); // <--- IMPORTANT : On arrête le chargement même en cas d'erreur
+                setLoading(false);
             });
 
-        // 2. Si Admin, on charge les sessions actives
+        // Si Admin, on charge les utilisateurs connéctés
         if (isAdmin) {
             fetchSessions();
         }
-    }, [isAdmin]); // On garde isAdmin en dépendance
+    }, [isAdmin]);
 
-    // Filtrage sécurisé
+    // Filtrage des étudiants pour sécuriser
     const filteredStudents = students.filter(student =>
+        // On formate le nom en minuscules pour la recherche
         student.name && student.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
